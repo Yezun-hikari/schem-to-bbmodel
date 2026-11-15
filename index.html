@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schematic zu bbmodel</title>
+  <meta name="description" content="Wandelt .schem, .schematic, .litematic und Struktur-.nbt in Blockbench-Modelle (.bbmodel) für Ressourcenpakete um.">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Schematic → bbmodel</h1>
+    <button id="theme" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel umschalten">◐</button>
+  </header>
+
+  <main>
+    <label id="drop" tabindex="0">
+      <input id="file" type="file" multiple accept=".schem,.schematic,.litematic,.nbt" hidden>
+      <strong>Dateien hierher ziehen</strong>
+      <span>oder klicken zum Auswählen</span>
+      <small>.schem · .schematic · .litematic · .nbt (Struktur)</small>
+    </label>
+
+    <section class="opts">
+      <label>Minecraft-Version (Texturen &amp; Blockmodelle)
+        <select id="version"></select>
+      </label>
+      <label>Blockbench-Formatversion
+        <select id="bbversion">
+          <option value="1.9.0">1.9 – 1.21.5</option>
+          <option value="1.21.6">1.21.6 – 1.21.10</option>
+          <option value="1.21.11">1.21.11 – 26.2</option>
+          <option value="26.3">26.3+</option>
+        </select>
+      </label>
+      <label class="check"><input id="fit" type="checkbox" checked> In 3×3×3 Blöcke einpassen (Limit von Java-Modellen)</label>
+      <label class="check"><input id="flat" type="checkbox" checked> Nur Durchschnittsfarbe pro Block (Transparenz bleibt erhalten)</label>
+      <label class="check"><input id="voxel" type="checkbox"> Voxel-Modus: Treppen, Stufen &amp; Co. als volle Blöcke (weniger Würfel, nutzt Durchschnittsfarbe)</label>
+      <label class="check"><input id="tint" type="checkbox" checked> Biomfarben in Gras/Laub-Texturen einbacken</label>
+    </section>
+
+    <ul id="log" aria-live="polite"></ul>
+  </main>
+
+  <footer>Läuft komplett im Browser. Vanilla-Assets kommen von <a href="https://github.com/InventivetalentDev/minecraft-assets">InventivetalentDev/minecraft-assets</a>.</footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
