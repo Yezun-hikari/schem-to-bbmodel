@@ -224,10 +224,28 @@ export async function convert(grid, assets, opts = {}) {
   const forCells = (a, b, fn) => { for (let y = a[1]; y < b[1]; y++) for (let z = a[2]; z < b[2]; z++) for (let x = a[0]; x < b[0]; x++) fn((y * sz + z) * sx + x); };
   const vol = ({ a, b }) => (b[0] - a[0]) * (b[1] - a[1]) * (b[2] - a[2]);
   const nameAt = (x, y, z) => { const id = at(x, y, z); return id >= 0 && fullCube[id] ? grid.palette[id].name : null; };
-  const occ = (x, y, z) => occluding[at(x, y, z)];
-  // Opaque cells walled in by opaque cells can never be seen: any box may swallow them, none has to cover them
-  const buried = (x, y, z) => occ(x, y, z) && FACE_NAMES.every((f) => occ(x + DIRS[f][0], y + DIRS[f][1], z + DIRS[f][2]));
-  if (flatColor) for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) if (buried(x, y, z)) done[(y * sz + z) * sx + x] = 2;
+  // Flood from outside through everything see-through: what the flood never touches (sealed cavities included)
+  // can never be seen. Cells with no flooded neighbour may be swallowed by any box and need no box themselves.
+  const reach = new Uint8Array(sx * sy * sz), stack = [];
+  const visit = (x, y, z) => {
+    const i = (y * sz + z) * sx + x;
+    if (!reach[i] && !occluding[grid.data[i]]) { reach[i] = 1; stack.push(x, y, z); }
+  };
+  for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
+    if (x === 0 || y === 0 || z === 0 || x === sx - 1 || y === sy - 1 || z === sz - 1) visit(x, y, z);
+  }
+  while (stack.length) {
+    const z = stack.pop(), y = stack.pop(), x = stack.pop();
+    for (const [dx, dy, dz] of Object.values(DIRS)) {
+      const a = x + dx, b = y + dy, c = z + dz;
+      if (a >= 0 && b >= 0 && c >= 0 && a < sx && b < sy && c < sz) visit(a, b, c);
+    }
+  }
+  // Out of bounds counts as flooded (open air around the build)
+  const seen = (x, y, z) => at(x, y, z) < 0 || !!reach[(y * sz + z) * sx + x];
+  const blocks = (x, y, z) => !seen(x, y, z) || !!occluding[at(x, y, z)];
+  const sealed = (x, y, z) => !seen(x, y, z) && FACE_NAMES.every((f) => !seen(x + DIRS[f][0], y + DIRS[f][1], z + DIRS[f][2]));
+  for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) if (sealed(x, y, z)) done[(y * sz + z) * sx + x] = 2;
   // Opaque boxes of one colour may overlap each other; see-through ones must not (alpha would stack)
   const free = (x, y, z, n, opaque) => {
     if (x < 0 || y < 0 || z < 0 || x >= sx || y >= sy || z >= sz) return false;
@@ -245,7 +263,7 @@ export async function convert(grid, assets, opts = {}) {
     if (!flatColor || !fullCube[id]) {
       for (const el of els) addElement(bname, el, [x, y, z], (_, f) => {
         const n = f.cullface && DIRS[f.cullface];
-        return n && occluding[at(x + n[0], y + n[1], z + n[2])];
+        return n && blocks(x + n[0], y + n[1], z + n[2]);
       });
       continue;
     }
@@ -285,7 +303,7 @@ export async function convert(grid, assets, opts = {}) {
       const xs = dx ? [dx > 0 ? x1 : x0 - 1] : range(x0, x1);
       const ys = dy ? [dy > 0 ? y1 : y0 - 1] : range(y0, y1);
       const zs = dz ? [dz > 0 ? z1 : z0 - 1] : range(z0, z1);
-      for (const a of xs) for (const b of ys) for (const c of zs) if (!occluding[at(a, b, c)]) return false;
+      for (const a of xs) for (const b of ys) for (const c of zs) if (!blocks(a, b, c)) return false;
       return true;
     });
   }

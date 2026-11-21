@@ -88,6 +88,11 @@ assert.deepStrictEqual([...avg.finalTex[1].img.data], [50, 25, 10, 255], 'stone 
 // 3x3x3 stone around one dirt block: the buried dirt is invisible, so the stone box swallows it
 const buriedGrid = { size: [3, 3, 3], palette: [stoneGrid.palette[0], { name: 'minecraft:dirt', props: {} }], data: Int32Array.from({ length: 27 }, (_, i) => +(i === 13)) };
 assert.deepStrictEqual((await convert(buriedGrid, assets, { flatColor: true })).bbmodel.elements.map((e) => e.name), ['stone']);
+// 5x5x5 stone shell around a sealed 3x3x3 air pocket holding a torch: the pocket is never seen, so one box, no torch
+const pocket = (i) => { const x = i % 5, z = ((i / 5) | 0) % 5, y = (i / 25) | 0; return [x, y, z].every((v) => v > 0 && v < 4) ? (i === 62 ? 2 : 1) : 0; };
+const shellGrid = { size: [5, 5, 5], palette: [stoneGrid.palette[0], { name: 'minecraft:air', props: {} }, parseState('minecraft:torch')], data: Int32Array.from({ length: 125 }, (_, i) => pocket(i)) };
+assert.deepStrictEqual((await convert(shellGrid, assets, { flatColor: true })).bbmodel.elements.map((e) => e.name), ['stone']);
+assert.equal((await convert(shellGrid, assets)).bbmodel.elements.length, 98, 'textured: only the 98 outer blocks, torch and pocket walls dropped');
 
 // Litematic: 2x1x1 region with negative size, palette [air, stone, dirt]
 const pal3 = ['minecraft:air', 'minecraft:stone', 'minecraft:dirt'].map((n) => ({ Name: ['string', n] }));
