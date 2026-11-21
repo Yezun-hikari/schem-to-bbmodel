@@ -220,9 +220,20 @@ export async function convert(grid, assets, opts = {}) {
 
   // With one colour per block, runs of the same full-cube block are merged into large boxes (greedy meshing).
   // This is what keeps Blockbench responsive: a solid wall becomes one cube instead of hundreds.
-  const done = new Uint8Array(sx * sy * sz);
+  const done = new Uint8Array(sx * sy * sz), cover = new Uint16Array(sx * sy * sz), boxes = [];
+  const forCells = (a, b, fn) => { for (let y = a[1]; y < b[1]; y++) for (let z = a[2]; z < b[2]; z++) for (let x = a[0]; x < b[0]; x++) fn((y * sz + z) * sx + x); };
+  const vol = ({ a, b }) => (b[0] - a[0]) * (b[1] - a[1]) * (b[2] - a[2]);
   const nameAt = (x, y, z) => { const id = at(x, y, z); return id >= 0 && fullCube[id] ? grid.palette[id].name : null; };
-  const free = (x, y, z, n) => nameAt(x, y, z) === n && !done[(y * sz + z) * sx + x];
+  const occ = (x, y, z) => occluding[at(x, y, z)];
+  // Opaque cells walled in by opaque cells can never be seen: any box may swallow them, none has to cover them
+  const buried = (x, y, z) => occ(x, y, z) && FACE_NAMES.every((f) => occ(x + DIRS[f][0], y + DIRS[f][1], z + DIRS[f][2]));
+  if (flatColor) for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) if (buried(x, y, z)) done[(y * sz + z) * sx + x] = 2;
+  // Opaque boxes of one colour may overlap each other; see-through ones must not (alpha would stack)
+  const free = (x, y, z, n, opaque) => {
+    if (x < 0 || y < 0 || z < 0 || x >= sx || y >= sy || z >= sz) return false;
+    const d = done[(y * sz + z) * sx + x];
+    return d === 2 || (nameAt(x, y, z) === n && (!d || opaque));
+  };
 
   for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
     if (done[(y * sz + z) * sx + x]) continue;
@@ -239,22 +250,41 @@ export async function convert(grid, assets, opts = {}) {
       continue;
     }
 
-    let x1 = x + 1, z1 = z + 1, y1 = y + 1;
-    while (x1 < sx && free(x1, y, z, bname)) x1++;
-    const rowFree = (zz, yy) => { for (let xx = x; xx < x1; xx++) if (!free(xx, yy, zz, bname)) return false; return true; };
-    while (z1 < sz && rowFree(z1, y)) z1++;
-    const layerFree = (yy) => { for (let zz = z; zz < z1; zz++) if (!rowFree(zz, yy)) return false; return true; };
-    while (y1 < sy && layerFree(y1)) y1++;
-    for (let yy = y; yy < y1; yy++) for (let zz = z; zz < z1; zz++) for (let xx = x; xx < x1; xx++) done[(yy * sz + zz) * sx + xx] = 1;
+    // Grow the box along each axis in turn; try every axis order and keep the one covering most new cells
+    const opaque = occluding[id];
+    let best = null;
+    for (const order of [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]) {
+      const a = [x, y, z], b = [x + 1, y + 1, z + 1];
+      const slabFree = (ax, v) => {
+        const p = [...a], q = [...b]; p[ax] = v; q[ax] = v + 1;
+        for (let yy = p[1]; yy < q[1]; yy++) for (let zz = p[2]; zz < q[2]; zz++) for (let xx = p[0]; xx < q[0]; xx++) if (!free(xx, yy, zz, bname, opaque)) return false;
+        return true;
+      };
+      for (const ax of order) { while (slabFree(ax, a[ax] - 1)) a[ax]--; while (slabFree(ax, b[ax])) b[ax]++; }
+      let gain = 0;
+      forCells(a, b, (i) => { gain += !done[i]; });
+      if (!best || gain > best.gain) best = { a, b, gain };
+    }
+    boxes.push({ bname, els, a: best.a, b: best.b });
+    forCells(best.a, best.b, (i) => { done[i] ||= 1; cover[i]++; });
+  }
 
+  // Overlap can leave boxes whose every visible cell another box also covers: drop those, smallest first
+  const kept = boxes.sort((p, q) => vol(p) - vol(q)).filter(({ a, b }) => {
+    let needed = false;
+    forCells(a, b, (i) => { needed ||= done[i] === 1 && cover[i] === 1; });
+    if (!needed) forCells(a, b, (i) => cover[i]--);
+    return needed;
+  });
+  for (const { bname, els, a: [x0, y0, z0], b: [x1, y1, z1] } of kept) {
     // A face is hidden only if every neighbour cell across it occludes
-    const box = { from: [0, 0, 0], to: [(x1 - x) * 16, (y1 - y) * 16, (z1 - z) * 16], rotation: null, shade: els[0].shade, faces: {} };
+    const box = { from: [0, 0, 0], to: [(x1 - x0) * 16, (y1 - y0) * 16, (z1 - z0) * 16], rotation: null, shade: els[0].shade, faces: {} };
     for (const [fname, f] of Object.entries(els[0].faces)) box.faces[fname] = { texture: f.texture, tint: f.tint, uv: [0, 0, 16, 16] };
-    addElement(bname, box, [x, y, z], (fname) => {
+    addElement(bname, box, [x0, y0, z0], (fname) => {
       const [dx, dy, dz] = DIRS[fname];
-      const xs = dx ? [dx > 0 ? x1 : x - 1] : range(x, x1);
-      const ys = dy ? [dy > 0 ? y1 : y - 1] : range(y, y1);
-      const zs = dz ? [dz > 0 ? z1 : z - 1] : range(z, z1);
+      const xs = dx ? [dx > 0 ? x1 : x0 - 1] : range(x0, x1);
+      const ys = dy ? [dy > 0 ? y1 : y0 - 1] : range(y0, y1);
+      const zs = dz ? [dz > 0 ? z1 : z0 - 1] : range(z0, z1);
       for (const a of xs) for (const b of ys) for (const c of zs) if (!occluding[at(a, b, c)]) return false;
       return true;
     });

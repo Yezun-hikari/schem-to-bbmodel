@@ -76,14 +76,18 @@ assert.deepStrictEqual([...avgGlass.finalTex[0].img.data], [100, 100, 100, 128],
 // Voxel mode: stone + 2 stairs merge into one box; a torch keeps its own shape
 const vGrid = { size: [4, 1, 1], palette: [{ name: 'minecraft:stone', props: {} }, parseState(states[2]), parseState('minecraft:torch')], data: Int32Array.from([0, 1, 1, 2]) };
 const vox = (await convert(vGrid, assets, { flatColor: true, voxel: true, fit: false })).bbmodel.elements;
-assert.deepStrictEqual(vox.map((e) => e.name), ['stone', 'oak_stairs', 'torch']);
-assert.equal(vox[1].to[0] - vox[1].from[0], 32, 'two stairs merged into one 2-block box');
+assert.deepStrictEqual(vox.map((e) => e.name).sort(), ['oak_stairs', 'stone', 'torch']);
+const vStairs = vox.find((e) => e.name === 'oak_stairs');
+assert.equal(vStairs.to[0] - vStairs.from[0], 32, 'two stairs merged into one 2-block box');
 
 // Greedy meshing: 4x2x3 stone with flat colours = 1 cube; without = one cube per block
 const stoneGrid = { size: [4, 2, 3], palette: [{ name: 'minecraft:stone', props: {} }], data: new Int32Array(24) };
 assert.equal((await convert(stoneGrid, assets, { flatColor: true })).bbmodel.elements.length, 1);
 assert.equal((await convert(stoneGrid, assets, { flatColor: false })).bbmodel.elements.length, 24, 'every block of a 2-high slab touches the surface');
 assert.deepStrictEqual([...avg.finalTex[1].img.data], [50, 25, 10, 255], 'stone is averaged into one pixel');
+// 3x3x3 stone around one dirt block: the buried dirt is invisible, so the stone box swallows it
+const buriedGrid = { size: [3, 3, 3], palette: [stoneGrid.palette[0], { name: 'minecraft:dirt', props: {} }], data: Int32Array.from({ length: 27 }, (_, i) => +(i === 13)) };
+assert.deepStrictEqual((await convert(buriedGrid, assets, { flatColor: true })).bbmodel.elements.map((e) => e.name), ['stone']);
 
 // Litematic: 2x1x1 region with negative size, palette [air, stone, dirt]
 const pal3 = ['minecraft:air', 'minecraft:stone', 'minecraft:dirt'].map((n) => ({ Name: ['string', n] }));
