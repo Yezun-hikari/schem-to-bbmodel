@@ -3,7 +3,7 @@
 import assert from 'node:assert';
 import { gzipSync } from 'node:zlib';
 import { readNbt } from '../src/nbt.js';
-import { toGrid, parseState } from '../src/formats.js';
+import { toGrid, parseState, downsample } from '../src/formats.js';
 import { convert } from '../src/convert.js';
 
 // --- tiny NBT writer (test only) ---
@@ -100,6 +100,9 @@ const lite = enc({ Regions: ['compound', { r: ['compound', {
 const g2 = await toGrid(await readNbt(lite));
 assert.deepStrictEqual(g2.size, [2, 1, 1]);
 assert.deepStrictEqual([...g2.data].map((i) => g2.palette[i].name), ['minecraft:stone', 'minecraft:dirt']);
+// Downsample: 3x2x1 -> 2x1x1; cell 1 = stone, stairs, log, chest (majority tie -> first), cell 2 = 1 air of 2 -> solid >= 1/4
+const d = downsample(g, 2);
+assert.deepStrictEqual([d.size, [...d.data].map((i) => d.palette[i].name)], [[2, 1, 1], ['minecraft:stone', 'minecraft:oak_log']]);
 // Sample file for manual testing in the browser: a tiny hut
 const S = ['minecraft:air', 'minecraft:grass_block[snowy=false]', 'minecraft:oak_planks', 'minecraft:glass',
   'minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]',

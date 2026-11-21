@@ -112,3 +112,30 @@ export async function toGrid(nbt, loadLegacyMap) {
   if (v.Schematic || v.Palette || v.BlockData) return sponge(v);
   throw new Error('Unbekanntes Schematic-Format.');
 }
+
+const AIR = new Set(['minecraft:air', 'minecraft:cave_air', 'minecraft:void_air', 'minecraft:structure_void']);
+
+// Lossy: every k×k×k cell becomes its most frequent non-air block, or air if less than `minFill` of it is solid.
+// A low threshold keeps 1-block walls and shells that a majority vote would erase.
+export function downsample(grid, k, minFill = 0.25) {
+  if (k <= 1) return grid;
+  const [sx, sy, sz] = grid.size, n = grid.size.map((s) => Math.ceil(s / k)), palette = [...grid.palette];
+  let air = palette.findIndex((p) => AIR.has(p.name));
+  if (air < 0) air = palette.push({ name: 'minecraft:air', props: {} }) - 1;
+  const data = new Int32Array(n[0] * n[1] * n[2]).fill(air), count = new Map();
+  for (let Y = 0; Y < n[1]; Y++) for (let Z = 0; Z < n[2]; Z++) for (let X = 0; X < n[0]; X++) {
+    count.clear();
+    let total = 0, solid = 0, best = air, bestN = 0;
+    for (let y = Y * k; y < Math.min(sy, Y * k + k); y++) for (let z = Z * k; z < Math.min(sz, Z * k + k); z++) for (let x = X * k; x < Math.min(sx, X * k + k); x++) {
+      const b = grid.data[(y * sz + z) * sx + x];
+      total++;
+      if (AIR.has(palette[b].name)) continue;
+      solid++;
+      const c = (count.get(b) ?? 0) + 1;
+      count.set(b, c);
+      if (c > bestN) { best = b; bestN = c; }
+    }
+    if (solid >= minFill * total) data[(Y * n[2] + Z) * n[0] + X] = best;
+  }
+  return { ...grid, size: n, palette, data };
+}
