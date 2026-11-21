@@ -71,7 +71,7 @@ const avg = averageColors([
 ]);
 assert.deepStrictEqual([...avg.finalTex[0].img.data], [100, 100, 100, 255, 100, 100, 100, 0], 'non-cube shapes keep their alpha mask');
 const avgGlass = averageColors([{ bname: 'minecraft:glass', path: 'block/glass', img: px(100, 100, 100, 255) }], new Set(['minecraft:glass']));
-assert.deepStrictEqual([...avgGlass.finalTex[0].img.data], [100, 100, 100, 128, 100, 100, 100, 128], 'glass becomes uniformly see-through');
+assert.deepStrictEqual([...avgGlass.finalTex[0].img.data], [100, 100, 100, 128], 'glass becomes one see-through pixel');
 
 // Voxel mode: stone + 2 stairs merge into one box; a torch keeps its own shape
 const vGrid = { size: [4, 1, 1], palette: [{ name: 'minecraft:stone', props: {} }, parseState(states[2]), parseState('minecraft:torch')], data: Int32Array.from([0, 1, 1, 2]) };
@@ -83,7 +83,7 @@ assert.equal(vox[1].to[0] - vox[1].from[0], 32, 'two stairs merged into one 2-bl
 const stoneGrid = { size: [4, 2, 3], palette: [{ name: 'minecraft:stone', props: {} }], data: new Int32Array(24) };
 assert.equal((await convert(stoneGrid, assets, { flatColor: true })).bbmodel.elements.length, 1);
 assert.equal((await convert(stoneGrid, assets, { flatColor: false })).bbmodel.elements.length, 24, 'every block of a 2-high slab touches the surface');
-assert.deepStrictEqual([...avg.finalTex[1].img.data], [50, 25, 10, 255, 50, 25, 10, 255], 'stone is averaged');
+assert.deepStrictEqual([...avg.finalTex[1].img.data], [50, 25, 10, 255], 'stone is averaged into one pixel');
 
 // Litematic: 2x1x1 region with negative size, palette [air, stone, dirt]
 const pal3 = ['minecraft:air', 'minecraft:stone', 'minecraft:dirt'].map((n) => ({ Name: ['string', n] }));

@@ -325,10 +325,11 @@ export function averageColors(entries, uniformAlpha = new Set()) {
     const uniform = avgAlpha === 255 || uniformAlpha.has(t.bname);
     const key = t.bname + '|' + avgAlpha;
     if (uniform && solidIndex.has(key)) return solidIndex.get(key);
-    const data = new Uint8ClampedArray(src.length);
-    for (let i = 0; i < src.length; i += 4) { data[i] = rgb[0]; data[i + 1] = rgb[1]; data[i + 2] = rgb[2]; data[i + 3] = uniform ? avgAlpha : src[i + 3]; }
+    // A uniform colour needs only 1 pixel: UVs stay in 0..16 space (uv_width), whatever the image size
+    const data = uniform ? Uint8ClampedArray.from([...rgb, avgAlpha]) : new Uint8ClampedArray(src.length);
+    if (!uniform) for (let i = 0; i < src.length; i += 4) { data[i] = rgb[0]; data[i + 1] = rgb[1]; data[i + 2] = rgb[2]; data[i + 3] = src[i + 3]; }
     const idx = finalTex.push({
-      ...t, img: { data, width: t.img.width, height: t.img.height },
+      ...t, img: uniform ? { data, width: 1, height: 1 } : { data, width: t.img.width, height: t.img.height },
       avgName: avgAlpha === 255 ? short + '_avg' : short + '_' + t.path.split('/').pop() + '_avg',
     }) - 1;
     if (uniform) solidIndex.set(key, idx);

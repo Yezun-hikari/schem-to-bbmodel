@@ -1,6 +1,7 @@
 import { readNbt } from './src/nbt.js';
 import { toGrid } from './src/formats.js';
 import { convert } from './src/convert.js';
+import { showPreview } from './preview.js';
 
 // Releases with flattened block names (1.13+) available as branches of InventivetalentDev/minecraft-assets
 const VERSIONS = ['1.21.11', '1.21.10', '1.21.8', '1.21.7', '1.21.6', '1.21.5', '1.21.4', '1.21.3', '1.21.1', '1.21',
@@ -91,6 +92,8 @@ async function handle(file) {
     info.textContent = notes.join(' · ');
     li.append(a, info);
     a.click();
+    $('preview').hidden = false;
+    showPreview($('view'), bbmodel);
   } catch (e) {
     console.error(e);
     li.className = 'err';

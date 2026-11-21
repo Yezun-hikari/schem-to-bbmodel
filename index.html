@@ -6,6 +6,10 @@
   <title>Schematic zu bbmodel</title>
   <meta name="description" content="Wandelt .schem, .schematic, .litematic und Struktur-.nbt in Blockbench-Modelle (.bbmodel) für Ressourcenpakete um.">
   <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+  </script>
   <script>
     try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
   </script>
@@ -16,6 +20,7 @@
     <button id="theme" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel umschalten">◐</button>
   </header>
 
+  <div class="layout">
   <main>
     <label id="drop" tabindex="0">
       <input id="file" type="file" multiple accept=".schem,.schematic,.litematic,.nbt" hidden>
@@ -44,6 +49,12 @@
 
     <ul id="log" aria-live="polite"></ul>
   </main>
+
+  <aside id="preview" hidden>
+    <canvas id="view" aria-label="3D-Vorschau des Modells"></canvas>
+    <small>Ziehen zum Drehen · Scrollen zum Zoomen · Rechtsklick zum Verschieben</small>
+  </aside>
+  </div>
 
   <footer>Läuft komplett im Browser. Vanilla-Assets kommen von <a href="https://github.com/InventivetalentDev/minecraft-assets">InventivetalentDev/minecraft-assets</a>.</footer>
   <script type="module" src="app.js"></script>
