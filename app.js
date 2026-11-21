@@ -69,13 +69,29 @@ async function loadPixels(url, tint) {
 let legacyMap;
 const loadLegacyMap = () => (legacyMap ??= fetch(LEGACY_URL).then((r) => r.json()).then((j) => j.blocks));
 
+// The last loaded file is re-converted whenever an option changes, so the preview follows the settings live
+let current = null;
+
 async function handle(file) {
   const li = document.createElement('li');
   li.textContent = `${file.name}: wird gelesen …`;
   log.prepend(li);
   try {
     const grid = await toGrid(await readNbt(await file.arrayBuffer()), loadLegacyMap);
-    li.textContent = `${file.name}: ${grid.size.join('×')} Blöcke, lade Assets für ${versionSel.value} …`;
+    current = { file, grid, li, run: 0 };
+    await render(current, false);
+  } catch (e) {
+    console.error(e);
+    li.className = 'err';
+    li.textContent = `${file.name}: ${e.message}`;
+  }
+}
+
+async function render(entry, keepView) {
+  const { file, grid, li } = entry, my = ++entry.run;
+  li.className = '';
+  li.textContent = `${file.name}: ${grid.size.join('×')} Blöcke, lade Assets für ${versionSel.value} …`;
+  try {
     const name = file.name.replace(/\.[^.]+$/, '');
     const opts = { name, fit: $('fit').checked, bakeTint: $('tint').checked, flatColor: $('flat').checked || $('voxel').checked, voxel: $('voxel').checked, javaBlockVersion: bbSel.value };
     const auto = $('detail').value === 'auto';
@@ -85,7 +101,9 @@ async function handle(file) {
       ({ bbmodel, stats } = await convert(downsample(grid, k), assetsFor(versionSel.value), opts));
       if (!auto || stats.cubes <= 2000 || k >= 4) break;
     }
-    const url = URL.createObjectURL(new Blob([JSON.stringify(bbmodel)], { type: 'application/json' }));
+    if (my !== entry.run) return; // a newer option change already started another conversion
+    if (entry.url) URL.revokeObjectURL(entry.url);
+    const url = entry.url = URL.createObjectURL(new Blob([JSON.stringify(bbmodel)], { type: 'application/json' }));
     li.innerHTML = '';
     const a = Object.assign(document.createElement('a'), { href: url, download: name + '.bbmodel', textContent: name + '.bbmodel herunterladen' });
     const info = document.createElement('small');
@@ -97,15 +115,17 @@ async function handle(file) {
     if (stats.missingTextures.length) notes.push('Texturen fehlen: ' + stats.missingTextures.join(', '));
     info.textContent = notes.join(' · ');
     li.append(a, info);
-    a.click();
     $('preview').hidden = false;
-    showPreview($('view'), bbmodel);
+    showPreview($('view'), bbmodel, keepView);
   } catch (e) {
+    if (my !== entry.run) return;
     console.error(e);
     li.className = 'err';
     li.textContent = `${file.name}: ${e.message}`;
   }
 }
+
+document.querySelector('.opts').addEventListener('change', () => current && render(current, true));
 
 const handleAll = (files) => [...files].forEach(handle);
 $('file').onchange = (e) => { handleAll(e.target.files); e.target.value = ''; };

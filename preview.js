@@ -27,7 +27,7 @@ function init(canvas) {
   renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 }
 
-export function showPreview(canvas, bbmodel) {
+export function showPreview(canvas, bbmodel, keepView = false) {
   if (!renderer) init(canvas);
   if (model) {
     scene.remove(model);
@@ -86,6 +86,7 @@ export function showPreview(canvas, bbmodel) {
     model.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map, transparent: true, alphaTest: 0.05 })));
   });
   scene.add(model);
+  if (keepView) return; // live update after an option change: leave the camera where the user put it
 
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());

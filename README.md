@@ -9,7 +9,8 @@ Kleines Web-Tool, das Minecraft-Schematics in Blockbench-Modelle (`.bbmodel`, Fo
 1. Seite öffnen, Datei(en) in das Feld ziehen oder anklicken.
 2. **Minecraft-Version** wählen: daraus kommen Blockstates, Blockmodelle und Texturen (1.13.2 bis 1.21.11).
 3. **Blockbench-Formatversion**: entspricht dem Versionsbereich, den Blockbench beim Java-Block/Item-Projekt abfragt (`1.9 – 1.21.5`, `1.21.6 – 1.21.10`, `1.21.11 – 26.2`, `26.3+`). Wird passend zur gewählten Version vorbelegt.
-4. Die `.bbmodel` wird heruntergeladen und lässt sich direkt in Blockbench öffnen.
+4. Die Vorschau zeigt das Ergebnis. Optionen lassen sich danach ändern, die Vorschau aktualisiert sich live für die zuletzt geladene Datei.
+5. Über den Link „herunterladen“ die `.bbmodel` speichern und in Blockbench öffnen.
 
 Optionen:
 
