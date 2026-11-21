@@ -41,6 +41,15 @@
           <option value="26.3">26.3+</option>
         </select>
       </label>
+      <label>Detailstufe (verlustbehaftet: k×k×k Blöcke werden zu einem)
+        <select id="detail">
+          <option value="1">Voll (aus)</option>
+          <option value="2">1/2</option>
+          <option value="3">1/3</option>
+          <option value="4">1/4</option>
+          <option value="auto">Auto (unter 2000 Würfel)</option>
+        </select>
+      </label>
       <label class="check"><input id="fit" type="checkbox" checked> In 3×3×3 Blöcke einpassen (Limit von Java-Modellen)</label>
       <label class="check"><input id="flat" type="checkbox" checked> Nur Durchschnittsfarbe pro Block (Transparenz bleibt erhalten)</label>
       <label class="check"><input id="voxel" type="checkbox"> Voxel-Modus: Treppen, Stufen &amp; Co. als volle Blöcke (weniger Würfel, nutzt Durchschnittsfarbe)</label>

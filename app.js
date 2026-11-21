@@ -1,5 +1,5 @@
 import { readNbt } from './src/nbt.js';
-import { toGrid } from './src/formats.js';
+import { toGrid, downsample } from './src/formats.js';
 import { convert } from './src/convert.js';
 import { showPreview } from './preview.js';
 
@@ -77,14 +77,20 @@ async function handle(file) {
     const grid = await toGrid(await readNbt(await file.arrayBuffer()), loadLegacyMap);
     li.textContent = `${file.name}: ${grid.size.join('×')} Blöcke, lade Assets für ${versionSel.value} …`;
     const name = file.name.replace(/\.[^.]+$/, '');
-    const { bbmodel, stats } = await convert(grid, assetsFor(versionSel.value), {
-      name, fit: $('fit').checked, bakeTint: $('tint').checked, flatColor: $('flat').checked || $('voxel').checked, voxel: $('voxel').checked, javaBlockVersion: bbSel.value,
-    });
+    const opts = { name, fit: $('fit').checked, bakeTint: $('tint').checked, flatColor: $('flat').checked || $('voxel').checked, voxel: $('voxel').checked, javaBlockVersion: bbSel.value };
+    const auto = $('detail').value === 'auto';
+    let k = auto ? 1 : +$('detail').value, bbmodel, stats;
+    // Auto: coarsen until under 2000 cubes (convert is fast, assets are cached after the first pass)
+    for (;; k++) {
+      ({ bbmodel, stats } = await convert(downsample(grid, k), assetsFor(versionSel.value), opts));
+      if (!auto || stats.cubes <= 2000 || k >= 4) break;
+    }
     const url = URL.createObjectURL(new Blob([JSON.stringify(bbmodel)], { type: 'application/json' }));
     li.innerHTML = '';
     const a = Object.assign(document.createElement('a'), { href: url, download: name + '.bbmodel', textContent: name + '.bbmodel herunterladen' });
     const info = document.createElement('small');
     const notes = [`${stats.cubes} Würfel`, `${stats.size.join('×')} Blöcke`];
+    if (k > 1) notes.push(`Detailstufe 1/${k}`);
     if (stats.scale < 1) notes.push(`skaliert auf ${(stats.scale * 100).toFixed(1)} %`);
     if (stats.cubes > 5000) notes.push('sehr viele Würfel – Blockbench kann langsam werden');
     if (stats.skipped.length) notes.push('ohne Geometrie übersprungen: ' + stats.skipped.map(([n, c]) => `${n.replace('minecraft:', '')} (${c})`).join(', '));
